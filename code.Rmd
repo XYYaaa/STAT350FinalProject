@@ -1,0 +1,176 @@
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = T)
+knitr::opts_chunk$set(cache = TRUE, warning=FALSE, message=FALSE)
+library(crrstep)
+library(corrplot)
+library(ggplot2)
+```
+
+# 1.read data
+```{r }
+data<- read.csv("insurance.csv")
+dim(data)
+```
+
+# 2.Explanatory variables
+
+```{r }
+str(data)
+summary(data)
+table(data$sex)
+table(data$smoker)
+table(data$region)
+```
+
+# 2.1 add one	new	additional	data	point
+
+```{r }
+data1 <-data.frame(age=c(51), sex=c("male"),bmi=c(34.69),children=c(2),smoker="yes",region="northwest",
+                   charges=0)
+dim(data)
+data2<-rbind(data,data1)
+data2[1339,]
+data=data2
+dim(data)
+dim(data[0:1338,])
+```
+
+# 3.Conversion variable
+
+```{r }
+#sex
+data$sex1=0
+data$sex1[data$sex=="male"]=1
+#smoker
+data$smoker1=0
+data$smoker1[data$smoker=="yes"]=1
+#region
+data$region1=0
+data$region1[data$region=="northeast"]=1
+data$region1[data$region=="northwest"]=2
+data$region1[data$region=="southeast"]=3
+data$region1[data$region=="southwest"]=4
+#age
+data$age2=data$age^2
+data$bmi30=ifelse(data$bmi>=30,1,0)
+```
+
+
+# 4.scatterplotMatrix
+
+```{r }
+library(car)
+var=c('age','sex1','bmi','children','smoker1','region1','charges')
+scatterplotMatrix(data[0:1338,var],lty.smooth=2,spread=FALSE,main='Scatter Plot Matrix')
+```
+
+# 4.Conversion variable
+
+```{r }
+hist(data[0:1338,]$charges)
+```
+
+
+
+# 4.full model
+```{r }
+full_model <- lm(charges ~ age+factor(sex)+bmi+children+factor(smoker)+factor(region)+
+              #1
+              age*factor(sex)+age*factor(smoker)+age*factor(region)+
+              bmi*factor(sex)+bmi*factor(smoker)+bmi*factor(region)+
+              children*factor(sex)+children*factor(smoker)+children*factor(region)+bmi30+age2+
+              bmi30*factor(smoker)+bmi30*factor(smoker)*age2
+            , data = data[0:1338,])
+summary(full_model)
+layout(matrix(c(1,2,3,4),nrow=2,byrow=T))
+plot(full_model)
+par(mfcol=c(1,2)) 
+plot(full_model$fitted.values,rstudent(full_model),xlab="fitted values",ylab="Studentized Residuals",main = "studentized residuals vs fitted")
+hist(rstudent(full_model),freq=F,xlab="sresid",main = "distribution of studentized residuals")
+z=rstudent(full_model)
+curve(dnorm(x,mean=mean(z),sd=sd(z)),add=T,col="blue",lwd=2)
+par(mfcol=c(1,2)) 
+plot(full_model)
+```
+
+
+# 5.full model(AIC)
+
+## forward
+
+```{r }
+full_model_aic=step(full_model,trace= 0,direction="forward")
+summary(full_model_aic)
+AIC(full_model_aic)
+```
+
+
+## backward
+
+```{r }
+full_model_aic=step(full_model,trace= 0,direction="backward")
+summary(full_model_aic)
+AIC(full_model_aic)
+```
+
+
+## both
+
+```{r }
+full_model_aic=step(full_model,trace= 0,direction="both")
+summary(full_model_aic)
+AIC(full_model_aic)
+layout(matrix(c(1,2,3,4),nrow=2,byrow=T))
+plot(full_model_aic)
+```
+
+# 6.full model(BIC)
+
+## forward
+
+```{r }
+n=length(data[0:1338,1])
+full_model_bic=step(full_model,trace= 0,direction="forward",k = log(n))
+summary(full_model_bic)
+AIC(full_model_bic,k=log(n))
+```
+
+## backward
+
+```{r }
+n=length(data[0:1338,1])
+full_model_bic=step(full_model,trace= 0,direction="backward",k = log(n))
+summary(full_model_bic)
+AIC(full_model_bic,k=log(n))
+```
+
+## both
+
+```{r }
+n=length(data[0:1338,1])
+full_model_bic=step(full_model,trace= 0,direction="both",k = log(n))
+summary(full_model_bic)
+AIC(full_model_bic,k=log(n))
+layout(matrix(c(1,2,3,4),nrow=2,byrow=T))
+plot(full_model_bic)
+```
+
+# 7.anova
+
+```{r }
+anova(full_model_bic,full_model_aic)
+```
+
+# 8.preditct one new	additional	data	point
+
+```{r }
+#full_model_bic
+predict(full_model_bic,newdata=data[1339,],interval="prediction")
+#full_model_aic
+predict(full_model_aic,newdata=data[1339,],interval="prediction")
+```
+
+
+
